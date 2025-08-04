@@ -33,4 +33,4 @@ console.log('Bot is running...');
 
 // Start local server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Web app running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Web app running on http://localhost:${8080}`));
