@@ -20,7 +20,7 @@ bot.start((ctx) => {
     reply_markup: {
       inline_keyboard: [
         [
-          { text: '🛍 Open Shop', web_app: { url: 'https://your-server.com' } }
+          { text: '🛍 Open Shop', web_app: { url: 'https://telegrom-shop-production.up.railway.app' } }
         ]
       ]
     }
