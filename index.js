@@ -1,8 +1,8 @@
 const { Telegraf, Markup } = require('telegraf');
 const db = require('./db');
 
-const BOT_TOKEN = '7563280857:AAG4eiwp2wl4RyzV2j6e6EvlF37nMPobJjQ';
-const ADMIN_PASSWORD = 'damir2006'; // смените пароль
+const BOT_TOKEN = new Telegraf(process.env.BOT_TOKEN);
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD; // смените пароль
 const bot = new Telegraf(BOT_TOKEN);
 
 // Сессии для админа (чтобы помнить, что он добавляет товар)
