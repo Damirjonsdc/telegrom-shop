@@ -115,29 +115,53 @@ bot.action(/cat_.+/, async (ctx) => {
 });
 
 // ------------------- HANDLE BUY BUTTON -------------------
-bot.action(/buy_.+/, async (ctx) => {
-  const productName = ctx.callbackQuery.data.replace('buy_', '');
-  const userId = ctx.from.id;
-  const username = ctx.from.username ? `@${ctx.from.username}` : `No username`;
+// Store pending orders
+const pendingOrders = {};
 
-  // Message to admin
+// --- Handle Buy button click ---
+bot.action(/Купить_.+/, async (ctx) => {
+  const productName = ctx.callbackQuery.data.replace('Купить_', '');
+
+  // Save which product this user wants
+  pendingOrders[ctx.from.id] = productName;
+
+  // Ask for contact info
+  await ctx.reply(
+    `📞 Вы выбрали *${productName}*.\n Пожалуйста отправьте ваш номер телефона or или ваш аккаунт чтобы мы могли связатся с вами.`,
+    { parse_mode: 'Markdown' }
+  );
+});
+
+// --- Handle user's reply with contact info ---
+bot.on('text', async (ctx) => {
+  const userId = ctx.from.id;
+
+  // Check if this user is in pending orders
+  if (!pendingOrders[userId]) return;
+
+  const productName = pendingOrders[userId];
+  const username = ctx.from.username ? `@${ctx.from.username}` : 'Нет имени';
+  const contactInfo = ctx.message.text;
+
+  // --- Send message to admin ---
   await bot.telegram.sendMessage(
     ADMIN_ID,
-    `🛒 New Order!\nProduct: ${productName}\nFrom: ${username}\nUser ID: ${userId}\n[Open Chat](tg://user?id=${userId})`,
+    `🛒 *New Order!*\n` +
+    `Product: *${productName}*\n` +
+    `From: ${username} (ID: ${userId})\n` +
+    `Contact: ${contactInfo}\n` +
+    `[Open Chat](tg://user?id=${userId})`,
     { parse_mode: 'Markdown' }
   );
 
-  // Forward client's message/photo to admin
-  if (ctx.callbackQuery.message) {
-    await bot.telegram.forwardMessage(
-      ADMIN_ID,
-      ctx.chat.id,
-      ctx.callbackQuery.message.message_id
-    );
-  }
+  // Forward the client's contact message to admin
+  await bot.telegram.forwardMessage(ADMIN_ID, ctx.chat.id, ctx.message.message_id);
 
   // Confirm to client
-  await ctx.reply('✅ Ваш запрос был отравлен. Меннеджер скоро с вами свяжется.');
+  await ctx.reply('✅ Спасибо! Ваш запрос был отправлен. Менеджер скоро с вами свяжется.');
+
+  // Remove from pending orders
+  delete pendingOrders[userId];
 });
 
 // ------------------- START EXPRESS -------------------
