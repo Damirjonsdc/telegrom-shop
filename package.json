@@ -6,6 +6,7 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "better-sqlite3": "^12.2.0",
     "express": "^5.1.0",
     "fs-extra": "^11.3.0",
     "telegraf": "^4.16.3"
