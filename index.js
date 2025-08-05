@@ -115,16 +115,29 @@ bot.action(/cat_.+/, async (ctx) => {
 });
 
 // ------------------- HANDLE BUY BUTTON -------------------
-bot.action(/Купить_.+/, (ctx) => {
-  const productName = ctx.callbackQuery.data.replace('Купить_', '');
-  
-  // Notify admin
-  bot.telegram.sendMessage(
+bot.action(/buy_.+/, async (ctx) => {
+  const productName = ctx.callbackQuery.data.replace('buy_', '');
+  const userId = ctx.from.id;
+  const username = ctx.from.username ? `@${ctx.from.username}` : `No username`;
+
+  // Message to admin
+  await bot.telegram.sendMessage(
     ADMIN_ID,
-    `🛒 New order!\nProduct: ${productName}\nFrom: @${ctx.from.username || ctx.from.id}`
+    `🛒 New Order!\nProduct: ${productName}\nFrom: ${username}\nUser ID: ${userId}\n[Open Chat](tg://user?id=${userId})`,
+    { parse_mode: 'Markdown' }
   );
-  
-  ctx.reply('✅ Ваш запрос был отправлен в магазин. Менеджер скоро с вами свяжется.');
+
+  // Forward client's message/photo to admin
+  if (ctx.callbackQuery.message) {
+    await bot.telegram.forwardMessage(
+      ADMIN_ID,
+      ctx.chat.id,
+      ctx.callbackQuery.message.message_id
+    );
+  }
+
+  // Confirm to client
+  await ctx.reply('✅ Ваш запрос был отравлен. Меннеджер скоро с вами свяжется.');
 });
 
 // ------------------- START EXPRESS -------------------
