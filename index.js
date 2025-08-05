@@ -3,7 +3,7 @@ const { Telegraf } = require('telegraf');
 const path = require('path');
 
 const app = express();
-const bot = new Telegraf(process.env.7563280857:AAG4eiwp2wl4RyzV2j6e6EvlF37nMPobJjQ); // Use your bot token
+const bot = new Telegraf(process.env.BOT_TOKEN); // Use your bot token
 
 // Serve public folder
 app.use(express.static(path.join(__dirname, 'public')));
