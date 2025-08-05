@@ -27,7 +27,6 @@ bot.telegram.setWebhook(`https://telegrom-shop-production.up.railway.app${secret
 app.use(bot.webhookCallback(secretPath));
 
 // ------------------- BOT COMMANDS -------------------
-let adminState = {}; // Track where admin is in the product-adding flow
 
 // Start Command
 bot.start((ctx) => {
@@ -40,50 +39,58 @@ bot.start((ctx) => {
   );
 });
 
-// Admin Add Command
+let adminState = {}; // temporary memory
+
+// Admin command to start adding product
 bot.command('add', (ctx) => {
-  if (ctx.from.id !== ADMIN_ID) return ctx.reply('❌ Вы не зарегестривованы.');
+  if (ctx.from.id !== ADMIN_ID) return ctx.reply('❌ You are not authorized.');
   adminState[ctx.from.id] = { step: 1, product: {} };
-  ctx.reply('📂 Выберите категорию товаров:', Markup.keyboard(CATEGORIES).oneTime().resize());
+  ctx.reply('📂 Choose a category for the product:', Markup.keyboard(CATEGORIES).oneTime().resize());
 });
 
-// Handle Category Selection in Admin Flow
+// Handle category
 bot.hears(CATEGORIES, (ctx) => {
-  if (!adminState[ctx.from.id] || adminState[ctx.from.id].step !== 1) return;
-  adminState[ctx.from.id].product.category = ctx.message.text;
-  adminState[ctx.from.id].step = 2;
-  ctx.reply('📸 Отправьте фото товаров:');
+  const state = adminState[ctx.from.id];
+  if (!state || state.step !== 1) return;
+  state.product.category = ctx.message.text;
+  state.step = 2;
+  ctx.reply('📸 Send the product image');
 });
 
-// Handle Photo Upload
-bot.on('фото', async (ctx) => {
-  if (!adminState[ctx.from.id] || adminState[ctx.from.id].step !== 2) return;
+// Handle image
+bot.on('photo', async (ctx) => {
+  const state = adminState[ctx.from.id];
+  if (!state || state.step !== 2) return;
   const fileId = ctx.message.photo.pop().file_id;
-  adminState[ctx.from.id].product.image = fileId;
-  adminState[ctx.from.id].step = 3;
-  ctx.reply('💰 Отправите название и цену товара, н.р., `Nike Air Zoom — $120`', { parse_mode: 'Markdown' });
+  state.product.image = fileId;
+  state.step = 3;
+  ctx.reply('💰 Send product name and price like: `Nike Air Zoom — $120`', { parse_mode: 'Markdown' });
 });
 
-// Handle Name & Price
-bot.hears(/.+—.+/i, (ctx) => {
-  if (!adminState[ctx.from.id] || adminState[ctx.from.id].step !== 3) return;
-  adminState[ctx.from.id].product.name = ctx.message.text.split('—')[0].trim();
-  adminState[ctx.from.id].product.price = ctx.message.text.split('—')[1].trim();
-  adminState[ctx.from.id].step = 4;
-  ctx.reply('🔗 Отправьте ссылку на товар (https://...)');
+// Handle name + price
+bot.hears(/.+[-—].+/i, (ctx) => {
+  const state = adminState[ctx.from.id];
+  if (!state || state.step !== 3) return;
+  const [name, price] = ctx.message.text.split(/[-—]/).map(s => s.trim());
+  state.product.name = name;
+  state.product.price = price;
+  state.step = 4;
+  ctx.reply('🔗 Send product link or type `skip`');
 });
 
-// Handle Link & Save Product
-bot.hears(/https?:\/\/\S+/i, async (ctx) => {
-  if (!adminState[ctx.from.id] || adminState[ctx.from.id].step !== 4) return;
-  adminState[ctx.from.id].product.link = ctx.message.text;
+// Handle link or skip
+bot.hears(/https?:\/\/\S+|skip/i, async (ctx) => {
+  const state = adminState[ctx.from.id];
+  if (!state || state.step !== 4) return;
 
-  // Save to products.json
+  state.product.link = ctx.message.text.toLowerCase() === 'skip' ? null : ctx.message.text;
+
+  // Save to file
   const products = await fs.readJson(PRODUCTS_FILE);
-  products.push(adminState[ctx.from.id].product);
+  products.push(state.product);
   await fs.writeJson(PRODUCTS_FILE, products, { spaces: 2 });
 
-  ctx.reply('✅ Товар добавлен!');
+  ctx.reply('✅ Product added successfully!');
   delete adminState[ctx.from.id];
 });
 
