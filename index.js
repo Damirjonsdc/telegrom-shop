@@ -4,13 +4,13 @@ const { Pool } = require('pg');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// Connect to PostgreSQL (Railway)
+// Подключение к PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: { rejectUnauthorized: false }
 });
 
-// Create products table if not exists
+// Создаем таблицу, если её нет
 (async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
@@ -24,25 +24,25 @@ const pool = new Pool({
   `);
 })();
 
-// /start for clients
+// /start для клиентов
 bot.start(async (ctx) => {
   const products = await pool.query('SELECT * FROM products ORDER BY id DESC LIMIT 5');
-  
+
   if (products.rows.length === 0) {
-    return ctx.reply('🛍 Магазин пока пуст. Загляните позже!');
+    return ctx.reply('Магазин пока пуст. Загляните позже!');
   }
 
   for (const p of products.rows) {
     await ctx.replyWithPhoto(p.photo || 'https://via.placeholder.com/300', {
-      caption: `${p.name}\n💰 Цена: ${p.price}`,
+      caption: `${p.name}\nЦена: ${p.price}`,
       reply_markup: {
-        inline_keyboard: [[{ text: '🛒 Купить', callback_data: `buy_${p.id}` }]],
-      },
+        inline_keyboard: [[{ text: '🛒 Купить', callback_data: `buy_${p.id}` }]]
+      }
     });
   }
 });
 
-// Handle Buy button
+// Обработка покупки
 bot.action(/buy_(\d+)/, async (ctx) => {
   const productId = ctx.match[1];
   const product = await pool.query('SELECT * FROM products WHERE id=$1', [productId]);
@@ -57,13 +57,13 @@ bot.action(/buy_(\d+)/, async (ctx) => {
   }
 });
 
-// /add for admin
-bot.command('add', (ctx) => {
+// Команда /add для админа
+bot.command('add', async (ctx) => {
   if (ctx.from.id.toString() !== process.env.ADMIN_ID) return;
-  ctx.reply('📸 Отправь фото товара с подписью: Название | Цена | Ссылка (необязательно)');
+  ctx.reply('Отправь фото товара с подписью: Название | Цена | Ссылка (необязательно)');
 });
 
-// Admin sends photo to add product
+// Прием фото для добавления товара
 bot.on('photo', async (ctx) => {
   if (ctx.from.id.toString() !== process.env.ADMIN_ID) return;
 
@@ -82,10 +82,7 @@ bot.on('photo', async (ctx) => {
   ctx.reply(`✅ Товар "${name}" добавлен в магазин!`);
 });
 
-// Launch bot in polling mode
+// --- ВАЖНО: запускаем только long polling ---
 bot.launch();
-console.log('🤖 Bot is running via long polling...');
 
-// Enable graceful stop
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+console.log('🤖 Bot started with long polling');
