@@ -1,18 +1,16 @@
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
-const express = require('express');
 const { Pool } = require('pg');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
-const app = express();
 
-// Подключение к PostgreSQL (используем DATABASE_PUBLIC_URL от Railway)
+// PostgreSQL connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
 });
 
-// Создаем таблицу, если ее нет
+// Create table if not exists
 (async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
@@ -24,27 +22,28 @@ const pool = new Pool({
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  console.log("✅ Products table ready");
 })();
 
-// /start для клиентов
+// /start for clients
 bot.start(async (ctx) => {
   const products = await pool.query('SELECT * FROM products ORDER BY id DESC LIMIT 5');
-
+  
   if (products.rows.length === 0) {
     return ctx.reply('🛍 Магазин пока пуст. Загляните позже!');
   }
 
   for (const p of products.rows) {
     await ctx.replyWithPhoto(p.photo || 'https://via.placeholder.com/300', {
-      caption: `${p.name}\n💵 Цена: ${p.price}${p.link ? `\n🔗 ${p.link}` : ''}`,
+      caption: `${p.name}\n💰 Цена: ${p.price}`,
       reply_markup: {
-        inline_keyboard: [[{ text: '🛒 Купить', callback_data: `buy_${p.id}` }]]
-      }
+        inline_keyboard: [[{ text: '🛒 Купить', callback_data: `buy_${p.id}` }]],
+      },
     });
   }
 });
 
-// Обработка покупки
+// Handle "Buy" button
 bot.action(/buy_(\d+)/, async (ctx) => {
   const productId = ctx.match[1];
   const product = await pool.query('SELECT * FROM products WHERE id=$1', [productId]);
@@ -59,13 +58,13 @@ bot.action(/buy_(\d+)/, async (ctx) => {
   }
 });
 
-// Команда /add для админа
+// /add for admin
 bot.command('add', async (ctx) => {
   if (ctx.from.id.toString() !== process.env.ADMIN_ID) return;
-  ctx.reply('📸 Отправь фото товара с подписью:\nНазвание | Цена | Ссылка (необязательно)');
+  ctx.reply('📸 Отправь фото товара с подписью: Название | Цена | Ссылка (необязательно)');
 });
 
-// Прием фото для добавления товара
+// Add product on photo
 bot.on('photo', async (ctx) => {
   if (ctx.from.id.toString() !== process.env.ADMIN_ID) return;
 
@@ -84,19 +83,10 @@ bot.on('photo', async (ctx) => {
   ctx.reply(`✅ Товар "${name}" добавлен в магазин!`);
 });
 
-// Настройка вебхука для Railway
-const secretPath = `/webhook/${bot.secretPathComponent()}`;
-app.use(bot.webhookCallback(secretPath));
+// Start bot (long polling mode)
+bot.launch();
+console.log("🤖 Bot is running (long polling)...");
 
-const PORT = process.env.PORT || 3000;
-const RAILWAY_URL = process.env.RAILWAY_URL || process.env.RAILWAY_STATIC_URL;
-
-app.listen(PORT, async () => {
-  console.log(`Server running on ${PORT}`);
-
-  if (RAILWAY_URL) {
-    const webhookUrl = `https://${RAILWAY_URL}${secretPath}`;
-    await bot.telegram.setWebhook(webhookUrl);
-    console.log(`Webhook set to ${webhookUrl}`);
-  }
-});
+// Enable graceful stop
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
