@@ -2,7 +2,10 @@ require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const { Pool } = require('pg');
 
+require('dotenv').config();
 const bot = new Telegraf(process.env.BOT_TOKEN);
+bot.launch();
+
 
 // Подключение к PostgreSQL
 const pool = new Pool({
