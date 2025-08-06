@@ -2,10 +2,8 @@ require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const { Pool } = require('pg');
 
-require('dotenv').config();
+// Инициализация бота
 const bot = new Telegraf(process.env.BOT_TOKEN);
-bot.launch();
-
 
 // Подключение к PostgreSQL
 const pool = new Pool({
@@ -25,31 +23,26 @@ const pool = new Pool({
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  console.log("✅ Database ready");
 })();
 
-// Команда /start для клиентов
+// Команда /start для клиента
 bot.start(async (ctx) => {
   const products = await pool.query('SELECT * FROM products ORDER BY id DESC LIMIT 5');
-  
   if (products.rows.length === 0) {
     return ctx.reply('Магазин пока пуст. Загляните позже!');
   }
 
   for (const p of products.rows) {
-    await ctx.replyWithPhoto(
-      p.photo || 'https://via.placeholder.com/300',
-      {
-        caption: `${p.name}\nЦена: ${p.price}`,
-        reply_markup: {
-          inline_keyboard: [[{ text: '🛒 Купить', callback_data: `buy_${p.id}` }]]
-        }
+    await ctx.replyWithPhoto(p.photo || 'https://via.placeholder.com/300', {
+      caption: `${p.name}\nЦена: ${p.price}`,
+      reply_markup: {
+        inline_keyboard: [[{ text: '🛒 Купить', callback_data: `buy_${p.id}` }]]
       }
-    );
+    });
   }
 });
 
-// Обработка покупки
+// Покупка
 bot.action(/buy_(\d+)/, async (ctx) => {
   const productId = ctx.match[1];
   const product = await pool.query('SELECT * FROM products WHERE id=$1', [productId]);
@@ -70,7 +63,7 @@ bot.command('add', async (ctx) => {
   ctx.reply('Отправь фото товара с подписью: Название | Цена | Ссылка (необязательно)');
 });
 
-// Прием фото для добавления товара
+// Прием фото от админа
 bot.on('photo', async (ctx) => {
   if (ctx.from.id.toString() !== process.env.ADMIN_ID) return;
 
@@ -89,6 +82,6 @@ bot.on('photo', async (ctx) => {
   ctx.reply(`✅ Товар "${name}" добавлен в магазин!`);
 });
 
-// Запуск бота через long polling
+// --- ВАЖНО: запускаем только POLLING ---
 bot.launch();
-console.log("🤖 Bot started via long polling");
+console.log('🤖 Bot started via polling');
