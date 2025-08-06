@@ -90,7 +90,15 @@ app.use(bot.webhookCallback(secretPath));
 
 const RAILWAY_URL = process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_URL;
 if (RAILWAY_URL) {
-  bot.telegram.setWebhook(`https://${RAILWAY_URL}${secretPath}`);
+  app.listen(PORT, async () => {
+  console.log(`Server running on ${PORT}`);
+  
+  if (RAILWAY_URL) {
+    const webhookUrl = `https://${RAILWAY_URL}${secretPath}`;
+    await bot.telegram.setWebhook(webhookUrl);
+    console.log(`Webhook set to ${webhookUrl}`);
+  }
+});
 }
 
 const PORT = process.env.PORT || 3000;
