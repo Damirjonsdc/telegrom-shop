@@ -6,13 +6,13 @@ const { Pool } = require('pg');
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const app = express();
 
-// Подключение к PostgreSQL
+// Подключение к PostgreSQL (используем DATABASE_PUBLIC_URL от Railway)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// Создаем таблицу, если нет
+// Создаем таблицу, если ее нет
 (async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
@@ -29,14 +29,14 @@ const pool = new Pool({
 // /start для клиентов
 bot.start(async (ctx) => {
   const products = await pool.query('SELECT * FROM products ORDER BY id DESC LIMIT 5');
-  
+
   if (products.rows.length === 0) {
-    return ctx.reply('Магазин пока пуст. Загляните позже!');
+    return ctx.reply('🛍 Магазин пока пуст. Загляните позже!');
   }
 
   for (const p of products.rows) {
     await ctx.replyWithPhoto(p.photo || 'https://via.placeholder.com/300', {
-      caption: `${p.name}\nЦена: ${p.price}`,
+      caption: `${p.name}\n💵 Цена: ${p.price}${p.link ? `\n🔗 ${p.link}` : ''}`,
       reply_markup: {
         inline_keyboard: [[{ text: '🛒 Купить', callback_data: `buy_${p.id}` }]]
       }
@@ -59,10 +59,10 @@ bot.action(/buy_(\d+)/, async (ctx) => {
   }
 });
 
-// Добавление товара (только админ)
+// Команда /add для админа
 bot.command('add', async (ctx) => {
   if (ctx.from.id.toString() !== process.env.ADMIN_ID) return;
-  ctx.reply('Отправь фото товара с подписью: Название | Цена | Ссылка (необязательно)');
+  ctx.reply('📸 Отправь фото товара с подписью:\nНазвание | Цена | Ссылка (необязательно)');
 });
 
 // Прием фото для добавления товара
@@ -84,22 +84,19 @@ bot.on('photo', async (ctx) => {
   ctx.reply(`✅ Товар "${name}" добавлен в магазин!`);
 });
 
-// Webhook для Railway
+// Настройка вебхука для Railway
 const secretPath = `/webhook/${bot.secretPathComponent()}`;
 app.use(bot.webhookCallback(secretPath));
 
-const RAILWAY_URL = process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_URL;
-if (RAILWAY_URL) {
-  app.listen(PORT, async () => {
+const PORT = process.env.PORT || 3000;
+const RAILWAY_URL = process.env.RAILWAY_URL || process.env.RAILWAY_STATIC_URL;
+
+app.listen(PORT, async () => {
   console.log(`Server running on ${PORT}`);
-  
+
   if (RAILWAY_URL) {
     const webhookUrl = `https://${RAILWAY_URL}${secretPath}`;
     await bot.telegram.setWebhook(webhookUrl);
     console.log(`Webhook set to ${webhookUrl}`);
   }
 });
-}
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
