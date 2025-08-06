@@ -4,13 +4,13 @@ const { Pool } = require('pg');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// PostgreSQL connection
+// Connect to PostgreSQL (Railway)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
-// Create table if not exists
+// Create products table if not exists
 (async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
@@ -22,7 +22,6 @@ const pool = new Pool({
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  console.log("✅ Products table ready");
 })();
 
 // /start for clients
@@ -43,7 +42,7 @@ bot.start(async (ctx) => {
   }
 });
 
-// Handle "Buy" button
+// Handle Buy button
 bot.action(/buy_(\d+)/, async (ctx) => {
   const productId = ctx.match[1];
   const product = await pool.query('SELECT * FROM products WHERE id=$1', [productId]);
@@ -59,12 +58,12 @@ bot.action(/buy_(\d+)/, async (ctx) => {
 });
 
 // /add for admin
-bot.command('add', async (ctx) => {
+bot.command('add', (ctx) => {
   if (ctx.from.id.toString() !== process.env.ADMIN_ID) return;
   ctx.reply('📸 Отправь фото товара с подписью: Название | Цена | Ссылка (необязательно)');
 });
 
-// Add product on photo
+// Admin sends photo to add product
 bot.on('photo', async (ctx) => {
   if (ctx.from.id.toString() !== process.env.ADMIN_ID) return;
 
@@ -83,9 +82,9 @@ bot.on('photo', async (ctx) => {
   ctx.reply(`✅ Товар "${name}" добавлен в магазин!`);
 });
 
-// Start bot (long polling mode)
+// Launch bot in polling mode
 bot.launch();
-console.log("🤖 Bot is running (long polling)...");
+console.log('🤖 Bot is running via long polling...');
 
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'));
