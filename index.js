@@ -10,7 +10,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Создаем таблицу, если её нет
+// Создаем таблицу, если ее нет
 (async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
@@ -22,23 +22,27 @@ const pool = new Pool({
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  console.log("✅ Database ready");
 })();
 
-// /start для клиентов
+// Команда /start для клиентов
 bot.start(async (ctx) => {
   const products = await pool.query('SELECT * FROM products ORDER BY id DESC LIMIT 5');
-
+  
   if (products.rows.length === 0) {
     return ctx.reply('Магазин пока пуст. Загляните позже!');
   }
 
   for (const p of products.rows) {
-    await ctx.replyWithPhoto(p.photo || 'https://via.placeholder.com/300', {
-      caption: `${p.name}\nЦена: ${p.price}`,
-      reply_markup: {
-        inline_keyboard: [[{ text: '🛒 Купить', callback_data: `buy_${p.id}` }]]
+    await ctx.replyWithPhoto(
+      p.photo || 'https://via.placeholder.com/300',
+      {
+        caption: `${p.name}\nЦена: ${p.price}`,
+        reply_markup: {
+          inline_keyboard: [[{ text: '🛒 Купить', callback_data: `buy_${p.id}` }]]
+        }
       }
-    });
+    );
   }
 });
 
@@ -82,7 +86,6 @@ bot.on('photo', async (ctx) => {
   ctx.reply(`✅ Товар "${name}" добавлен в магазин!`);
 });
 
-// --- ВАЖНО: запускаем только long polling ---
+// Запуск бота через long polling
 bot.launch();
-
-console.log('🤖 Bot started with long polling');
+console.log("🤖 Bot started via long polling");
